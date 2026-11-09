@@ -37,6 +37,9 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64
+          # Plain single-image manifest (no attestation index) so Unraid's update check can read it.
+          provenance: false
+          sbom: false
           tags: |
             ghcr.io/orcsbane1369/work-hours:latest
             ghcr.io/orcsbane1369/work-hours:${{ github.sha }}
