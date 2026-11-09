@@ -1,4 +1,5 @@
-# Works with `docker compose up -d --build` (or Unraid's Compose Manager plugin).
+# Works with `docker compose up -d` (or Unraid's Compose Manager plugin). To update: `docker compose pull && docker compose up -d`
+# (or press Update Stack in Compose Manager). The image is built by GitHub, so nothing is built on the server.
 #
 # YOU SHOULD NOT NEED TO EDIT THIS FILE. All your settings live in a file named `.env` next to it
 # (copy `.env.example` to `.env` once). Unzipping a new version replaces this file but never your `.env`.
@@ -9,8 +10,7 @@ name: workhours
 
 services:
   workhours:
-    build: .
-    image: workhours:latest
+    image: ghcr.io/orcsbane1369/work-hours:latest   # built by GitHub on every push (see .github/workflows)
     container_name: workhours
     restart: unless-stopped
     user: "99:100"            # Unraid's nobody:users; owns the data folder

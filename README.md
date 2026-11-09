@@ -101,6 +101,13 @@ template that is committed. To publish a change from the folder that holds `app.
 Run `python test_calc.py` and `python test_app.py` before you push.
 
 ## Updating on Unraid
+**Easiest (image built by GitHub):** every push to `main` runs the tests and publishes
+`ghcr.io/orcsbane1369/work-hours:latest` (see `.github/workflows/docker.yml`). On Unraid, update by pulling that image:
+press **Update Stack** in Compose Manager, or run `docker compose pull && docker compose up -d`, or use
+"Check for updates" / "Apply update" on the Docker tab if you added it as a normal container. No git on the server.
+The package must be set to Public once (GitHub profile > Packages > work-hours > Package settings).
+
+**Alternative (build on the server from git):**
 After a change has been pushed to GitHub, open the Unraid terminal and run:
 
     cd /mnt/user/appdata/workhours-git
