@@ -22,7 +22,7 @@ services:
     security_opt:
       - no-new-privileges:true
     labels:
-      net.unraid.docker.icon: "https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/png/clock.png"
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/orcsbane1369/Work-Hours/main/static/icon.png"
       net.unraid.docker.webui: "http://[IP]:5005"
     ports:
       - "${WH_PORT:-5005}:5000"   # host port -> app. Do not forward this port on your router.
