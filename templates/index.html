@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block body %}
+<header class="topbar">
+  <h1>Work Hours Tracker</h1>
+  <div class="who">
+    <span>{{ username }}</span>
+    <form method="post" action="{{ url_for('logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="ghost">Sign out</button>
+    </form>
+  </div>
+</header>
+
+<main class="page">
+  <section class="panel">
+    <h2>Pay settings</h2>
+    <form id="settingsForm" class="row">
+      <label>Employer rules <select id="s_rules"><option value="">Choose employer...</option></select></label>
+      <label>Hourly rate ($) <input id="s_rate" type="number" step="0.01" min="0"></label>
+      <label>Federal % <input id="s_fed" type="number" step="0.01" min="0" max="100"></label>
+      <label>Social Security % <input id="s_ss" type="number" step="0.01" min="0" max="100"></label>
+      <label>Medicare % <input id="s_med" type="number" step="0.01" min="0" max="100"></label>
+      <button class="primary" type="submit">Save settings</button>
+      <span id="settingsMsg" class="muted" role="status"></span>
+    </form>
+    <details id="rulesSummary" class="summary">
+      <summary>How this employer's rules work</summary>
+      <ul id="rulesList"></ul>
+    </details>
+  </section>
+
+  <section class="toolbar">
+    <div class="group">
+      <button id="btnNew" class="primary">New paystub</button>
+      <button id="btnEdit" disabled>Edit</button>
+      <button id="btnDelete" class="danger" disabled>Delete</button>
+    </div>
+    <div class="group">
+      <button id="btnSummary">Yearly summary</button>
+      <button id="btnRules">Employer rules</button>
+      <button id="btnBanks">Manage banks</button>
+      <button id="btnDeds">Manage deductions</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <form id="filterForm" class="row">
+      <label>From <input id="f_start" type="date"></label>
+      <label>To <input id="f_end" type="date"></label>
+      <button type="submit">Apply</button>
+      <button type="button" id="btnClear">Clear</button>
+      <span id="stubCount" class="muted" role="status"></span>
+    </form>
+  </section>
+
+  <section class="tablewrap">
+    <table id="stubTable">
+      <thead><tr>
+        <th>Pay date</th><th>Period</th><th>Employer</th><th class="n">Rate</th><th class="n">Hours</th>
+        <th class="n">Gross</th><th class="n">Deductions</th><th class="n net">Net pay</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <p id="emptyMsg" class="empty" hidden>No paystubs in this range. Use New paystub to add one.</p>
+  </section>
+</main>
+
+<!-- Paystub entry -->
+<dialog id="stubDlg" class="wide">
+  <div id="stubForm">
+    <header class="dlg-head"><h2 id="stubTitle">Paystub</h2><button type="button" class="ghost" id="stubClose">Close</button></header>
+    <div class="dlg-body">
+      <div class="dlg-main">
+        <fieldset class="row">
+          <legend>Pay period</legend>
+          <label>Pay date <input id="p_paydate" type="date" required></label>
+          <label>Period start <input id="p_start" type="date" required></label>
+          <label>Period end <input id="p_end" type="date" required></label>
+          <label>Hourly rate ($) <input id="p_rate" type="number" step="0.01" min="0" required></label>
+          <label>Employer rules <select id="p_rules"></select></label>
+          <label>Days worked in a row before this period <input id="p_streak" type="number" step="1" min="0" max="60" value="0"></label>
+          <span id="streakHint" class="muted"></span>
+          <span id="weekWarn" class="warn" hidden></span>
+        </fieldset>
+        <div class="weeks">
+          <fieldset><legend>Week 1</legend><div id="week0" class="grid"></div></fieldset>
+          <fieldset><legend>Week 2</legend><div id="week1" class="grid"></div></fieldset>
+        </div>
+        <fieldset class="row">
+          <legend>Tax percentages</legend>
+          <label>Federal % <input id="p_fed" type="number" step="0.01" min="0" max="100"></label>
+          <label>Social Security % <input id="p_ss" type="number" step="0.01" min="0" max="100"></label>
+          <label>Medicare % <input id="p_med" type="number" step="0.01" min="0" max="100"></label>
+        </fieldset>
+        <fieldset>
+          <legend>Deductions for this paystub</legend>
+          <div id="dedChecks" class="checks"></div>
+          <p id="dedNone" class="muted" hidden>None set up yet. Use Manage deductions on the main page.</p>
+        </fieldset>
+        <fieldset>
+          <legend>Deposit split</legend>
+          <div id="splits"></div>
+          <div class="row">
+            <button type="button" id="btnAddSplit">Add split</button>
+            <button type="button" id="btnFillSplit">Put remainder in last split</button>
+            <span id="remaining" class="muted" role="status"></span>
+          </div>
+        </fieldset>
+      </div>
+      <aside class="results" aria-live="polite">
+        <h3>Results</h3>
+        <div id="results"><p class="muted">Enter hours to see the calculation.</p></div>
+      </aside>
+    </div>
+    <footer class="dlg-foot">
+      <span id="stubMsg" class="error" role="alert"></span>
+      <button type="button" id="btnCalc">Calculate pay</button>
+      <button type="button" id="btnSave" class="primary">Save paystub</button>
+    </footer>
+  </div>
+</dialog>
+
+
+<!-- Yearly summary -->
+<dialog id="sumDlg" class="wide">
+  <header class="dlg-head">
+    <h2>Yearly summary</h2>
+    <div class="row">
+      <label class="inline">Year <select id="sum_year"></select></label>
+      <button type="button" id="sumPrint">Print / Save as PDF</button>
+      <button type="button" class="ghost" data-close>Close</button>
+    </div>
+  </header>
+  <div id="sumBody" class="dlg-body sum"></div>
+</dialog>
+
+<!-- Employer rule sets (shared library) -->
+<dialog id="rulesDlg" class="wide">
+  <header class="dlg-head"><h2>Employer rule sets</h2><button type="button" class="ghost" data-close>Close</button></header>
+  <div class="dlg-body rs">
+    <div class="rs-list">
+      <p class="muted">Shared library: everyone can use any rule set. Only its creator can change it, and anyone can duplicate one to make their own.</p>
+      <div class="row">
+        <label>Start a new one from <select id="rs_template"></select></label>
+        <button id="rsNew" class="primary" type="button">New rule set</button>
+      </div>
+      <ul id="rsList" class="plain"></ul>
+    </div>
+    <form id="rsForm" class="rs-editor" hidden>
+      <h3 id="rsTitle">Rule set</h3>
+      <p id="rsReadonly" class="warn" hidden></p>
+      <fieldset id="rsFields" class="bare">
+        <div class="row">
+          <label>Name <input id="rs_name" maxlength="60" required></label>
+          <label class="grow">Description <input id="rs_desc" maxlength="200"></label>
+        </div>
+        <fieldset>
+          <legend>Work week</legend>
+          <label>Weeks start on <select id="rs_weekstart"></select></label>
+        </fieldset>
+        <fieldset>
+          <legend>Automatic overtime (no checkbox needed)</legend>
+          <div class="rule-line"><label class="inline"><input id="rs_w_on" type="checkbox"> Weekly: hours beyond</label>
+            <input id="rs_w_thr" type="number" step="0.25" min="0.25" max="168"> <span>in a week pay</span>
+            <input id="rs_w_mult" type="number" step="0.05" min="0" max="5"><span>x</span></div>
+          <div class="rule-line"><label class="inline"><input id="rs_do_on" type="checkbox"> Daily overtime: hours beyond</label>
+            <input id="rs_do_after" type="number" step="0.25" min="0.25" max="24"> <span>in a day pay</span>
+            <input id="rs_do_mult" type="number" step="0.05" min="0" max="5"><span>x</span></div>
+          <div class="rule-line"><label class="inline"><input id="rs_dd_on" type="checkbox"> Daily double time: hours beyond</label>
+            <input id="rs_dd_after" type="number" step="0.25" min="0.25" max="24"> <span>in a day pay</span>
+            <input id="rs_dd_mult" type="number" step="0.05" min="0" max="5"><span>x</span></div>
+          <div class="rule-line"><label class="inline"><input id="rs_c_on" type="checkbox"> Consecutive days: day number</label>
+            <input id="rs_c_day" type="number" step="1" min="2" max="14"> <span>pays</span>
+            <input id="rs_c_mult" type="number" step="0.05" min="0" max="5"><span>x on all its hours</span>
+            <label class="inline"><input id="rs_c_counts" type="checkbox"> counts toward the weekly threshold</label>
+            <label class="inline"><input id="rs_c_restart" type="checkbox"> restart the count after any day paid at this rate or more, so it repeats every Nth day</label></div>
+        </fieldset>
+        <fieldset>
+          <legend>Day checkboxes</legend>
+          <p class="muted">These appear on every day of the paystub grid. Add one for each special pay situation this employer has.</p>
+          <div id="rsCodes" class="codes"></div>
+          <button type="button" id="rsAddCode">Add a day checkbox</button>
+        </fieldset>
+      </fieldset>
+      <fieldset>
+        <legend>In plain English</legend>
+        <ul id="rsSummary" class="plainlist"></ul>
+      </fieldset>
+      <div class="dlg-foot inline-foot">
+        <span id="rsMsg" class="error" role="alert"></span>
+        <button type="button" id="rsCancel">Back to list</button>
+        <button type="button" id="rsDuplicate" hidden>Duplicate to edit</button>
+        <button type="submit" id="rsSave" class="primary">Save rule set</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- Banks -->
+<dialog id="banksDlg">
+  <header class="dlg-head"><h2>Banks / accounts</h2><button type="button" class="ghost" data-close>Close</button></header>
+  <div class="dlg-body col">
+    <ul id="bankList" class="plain"></ul>
+    <form id="bankForm" class="row"><label>Name <input id="b_name" maxlength="80" required placeholder="Checking ending 4821"></label><button class="primary" type="submit">Add</button></form>
+    <p id="bankMsg" class="error" role="alert"></p>
+  </div>
+</dialog>
+
+<!-- Deductions -->
+<dialog id="dedsDlg">
+  <header class="dlg-head"><h2>Deductions</h2><button type="button" class="ghost" data-close>Close</button></header>
+  <div class="dlg-body col">
+    <ul id="dedList" class="plain"></ul>
+    <form id="dedForm" class="row">
+      <label>Name <input id="d_name" maxlength="80" required></label>
+      <label>When <select id="d_kind"><option value="pre">Pre-tax</option><option value="post">Post-tax</option></select></label>
+      <label>Type <select id="d_mode"><option value="flat">Flat $</option><option value="percent">% of gross</option></select></label>
+      <label>Amount <input id="d_amount" type="number" step="0.01" min="0" required></label>
+      <label class="inline"><input id="d_fica" type="checkbox"> Also reduces Social Security / Medicare wages</label>
+      <button class="primary" type="submit">Add</button>
+    </form>
+    <p id="dedMsg" class="error" role="alert"></p>
+  </div>
+</dialog>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='app.js') }}"></script>{% endblock %}

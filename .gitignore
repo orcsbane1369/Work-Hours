@@ -1,0 +1,22 @@
+# Secrets and your data: never commit these
+.env
+.env.*
+!.env.example
+instance/
+data/
+*.db
+*.db-journal
+secret_key
+
+# Python / tooling
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

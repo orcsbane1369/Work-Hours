@@ -1,0 +1,8 @@
+# Only needed if you manage the tunnel from a config file. With the Cloudflare dashboard, add a "Public hostname"
+# (hours.yourdomain.com) with service type HTTP and the URL below.
+ingress:
+  - hostname: hours.yourdomain.com
+    service: http://192.168.1.50:5005     # your Unraid server's LAN IP and the app's host port (or localhost:5005 if
+                                          # the tunnel runs in host network mode)
+  # ...your existing hostnames stay as they are...
+  - service: http_status:404

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yearly pay summary {{ s.year }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='print.css') }}">
+</head>
+<body>
+<div class="bar noprint">
+  <button id="printBtn" type="button">Print / Save as PDF</button>
+  <a href="{{ url_for('index') }}">Back to the app</a>
+  {% if s.years|length > 1 %}
+  <span class="years">Year:
+    {% for y in s.years %}{% if y == s.year %}<strong>{{ y }}</strong>{% else %}<a href="{{ url_for('summary_print', year=y) }}">{{ y }}</a>{% endif %} {% endfor %}
+  </span>
+  {% endif %}
+  <span class="hint">In the print window, choose &ldquo;Save as PDF&rdquo; as the destination.</span>
+</div>
+
+<main class="sheet">
+  <header class="doc-head">
+    <h1>Yearly pay summary {{ s.year }}</h1>
+    <p>Prepared for {{ username }} on {{ today|mdy }}. Paystubs are grouped by pay date, which is how wages are
+       reported for the tax year. {{ s.count }} paystub{{ '' if s.count == 1 else 's' }} paid in {{ s.year }}.</p>
+  </header>
+
+  {% if not s.count %}
+    <p class="empty">No paystubs with a pay date in {{ s.year }}.</p>
+  {% else %}
+  {% set T = s.totals %}
+  {% if s.missing_breakdown %}
+    <p class="note">{{ s.missing_breakdown }} older paystub{{ ' was' if s.missing_breakdown == 1 else 's were' }} saved before
+    taxes and deductions were itemized. Gross and net include {{ 'it' if s.missing_breakdown == 1 else 'them' }}, but the tax,
+    deduction and hours-by-rate figures do not.</p>
+  {% endif %}
+
+  <section>
+    <h2>Totals</h2>
+    <table class="totals">
+      <tr><th>Gross pay</th><td class="n">{{ T.gross|usd }}</td></tr>
+      <tr><td>Federal withholding</td><td class="n">{{ T.fed|usd }}</td></tr>
+      <tr><td>Social Security</td><td class="n">{{ T.ss|usd }}</td></tr>
+      <tr><td>Medicare</td><td class="n">{{ T.med|usd }}</td></tr>
+      <tr><td>Pre-tax deductions</td><td class="n">{{ T.pre|usd }}</td></tr>
+      <tr><td>Post-tax deductions</td><td class="n">{{ T.post|usd }}</td></tr>
+      <tr class="strong"><th>Net pay</th><td class="n">{{ T.net|usd }}</td></tr>
+      <tr><td>Hours paid</td><td class="n">{{ T.hours|hrs }}</td></tr>
+      <tr><td>Average net per paystub</td><td class="n">{{ (T.net / s.count)|usd }}</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>By month paid</h2>
+    <table>
+      <thead><tr><th>Month</th><th class="n">Paystubs</th><th class="n">Hours</th><th class="n">Gross</th><th class="n">Deductions</th><th class="n">Net</th></tr></thead>
+      <tbody>
+      {% for m in s.by_month if m.count %}
+        <tr><td>{{ months[m.month - 1] }}</td><td class="n">{{ m.count }}</td><td class="n">{{ m.hours|hrs }}</td>
+            <td class="n">{{ m.gross|usd }}</td><td class="n">{{ m.deductions|usd }}</td><td class="n">{{ m.net|usd }}</td></tr>
+      {% endfor %}
+      </tbody>
+      <tfoot><tr><td>Total</td><td class="n">{{ s.count }}</td><td class="n">{{ T.hours|hrs }}</td>
+        <td class="n">{{ T.gross|usd }}</td><td class="n">{{ T.deductions|usd }}</td><td class="n">{{ T.net|usd }}</td></tr></tfoot>
+    </table>
+  </section>
+
+  {% if s.hours_by_rate %}
+  {% set total_rate_hours = s.hours_by_rate|sum(attribute='hours') %}
+  <section>
+    <h2>Hours by pay rate</h2>
+    <table>
+      <thead><tr><th>Rate</th><th class="n">Hours</th><th class="n">Share</th></tr></thead>
+      <tbody>
+      {% for r in s.hours_by_rate %}
+        <tr><td>{{ 'Straight (1x)' if r.mult == 1 else (r.mult|hrs ~ 'x') }}</td><td class="n">{{ r.hours|hrs }}</td>
+            <td class="n">{{ ((r.hours / total_rate_hours) * 100)|round|int }}%</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  {% if s.deductions %}
+  <section>
+    <h2>Deductions by name</h2>
+    <table>
+      <thead><tr><th>Deduction</th><th>When</th><th class="n">Total</th></tr></thead>
+      <tbody>
+      {% for d in s.deductions %}
+        <tr><td>{{ d.name }}</td><td>{{ 'Pre-tax' if d.kind == 'pre' else 'Post-tax' }}</td><td class="n">{{ d.total|usd }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  {% if s.by_employer|length > 1 %}
+  <section>
+    <h2>By employer</h2>
+    <table>
+      <thead><tr><th>Employer rules</th><th class="n">Paystubs</th><th class="n">Hours</th><th class="n">Gross</th><th class="n">Net</th></tr></thead>
+      <tbody>
+      {% for e in s.by_employer %}
+        <tr><td>{{ e.name }}</td><td class="n">{{ e.count }}</td><td class="n">{{ e.hours|hrs }}</td><td class="n">{{ e.gross|usd }}</td><td class="n">{{ e.net|usd }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  <section>
+    <h2>Paystub detail</h2>
+    <table>
+      <thead><tr><th>Pay date</th><th>Pay period</th><th>Employer</th><th class="n">Hours</th><th class="n">Gross</th><th class="n">Deductions</th><th class="n">Net</th></tr></thead>
+      <tbody>
+      {% for p in s.stubs %}
+        <tr><td>{{ p.pay_date|mdy }}</td><td>{{ p.period_start|mdy }} to {{ p.period_end|mdy }}</td><td>{{ p.employer }}</td>
+            <td class="n">{{ p.hours|hrs }}</td><td class="n">{{ p.gross|usd }}</td><td class="n">{{ p.deductions|usd }}</td><td class="n">{{ p.net|usd }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  <footer class="doc-foot">Calculated by Work Hours Tracker from the paystubs you saved. This is a personal record, not an official
+  tax document. Use your employer's pay statements and W-2 when you file.</footer>
+</main>
+{% if autoprint %}<meta name="autoprint" content="1">{% endif %}
+<script src="{{ url_for('static', filename='print.js') }}"></script>
+</body>
+</html>

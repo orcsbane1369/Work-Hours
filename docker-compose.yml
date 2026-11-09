@@ -1,0 +1,38 @@
+# Works with `docker compose up -d --build` (or Unraid's Compose Manager plugin).
+#
+# YOU SHOULD NOT NEED TO EDIT THIS FILE. All your settings live in a file named `.env` next to it
+# (copy `.env.example` to `.env` once). Unzipping a new version replaces this file but never your `.env`.
+#
+# The app gets its own small container. Your existing binhex-nginx is not involved and is left alone.
+# Fixed project name, so this works the same from any folder you keep the project in.
+name: workhours
+
+services:
+  workhours:
+    build: .
+    image: workhours:latest
+    container_name: workhours
+    restart: unless-stopped
+    user: "99:100"            # Unraid's nobody:users; owns the data folder
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "${WH_PORT:-5005}:5000"   # host port -> app. Do not forward this port on your router.
+    environment:
+      # Cookies are https-only, and the app trusts the tunnel in front of it. Set WH_HTTPS=0 in .env only to test over
+      # plain http on your home network.
+      WH_BEHIND_PROXY: "${WH_BEHIND_PROXY:-1}"
+      WH_HTTPS: "${WH_HTTPS:-1}"
+      # Cloudflare puts the real visitor address in this header. It makes the login lockout per visitor.
+      WH_CLIENT_IP_HEADER: "${WH_CLIENT_IP_HEADER:-CF-Connecting-IP}"
+      # Sign-ups are CLOSED unless your .env opens them (safer default for something on the internet).
+      WH_ALLOW_REGISTRATION: "${WH_ALLOW_REGISTRATION:-0}"
+      # Empty means no invitation code is required.
+      WH_REGISTER_CODE: "${WH_REGISTER_CODE:-}"
+    volumes:
+      - "${WH_DATA_DIR:-/mnt/user/appdata/workhours}:/data"   # database + session key. NOT inside your nginx web folder.
