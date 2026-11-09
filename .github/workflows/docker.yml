@@ -35,7 +35,8 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          # Docker-format manifest (not OCI) so Unraid's update check can read it.
+          outputs: type=registry,oci-mediatypes=false
           platforms: linux/amd64
           # Plain single-image manifest (no attestation index) so Unraid's update check can read it.
           provenance: false
