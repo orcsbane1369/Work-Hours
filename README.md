@@ -23,7 +23,7 @@ generated into `instance/secret_key`. Keep both files private.
 - `WH_INSTANCE=/data`        folder for the database and session key (a Docker volume)
 - `WH_HOST=127.0.0.1`, `PORT=5000`
 
-Docker settings live in a `.env` file (copy `.env.example`); it is never part of the zip, so updates keep your settings.
+Docker settings live in a `.env` file (copy `.env.example`); it is never committed to GitHub, so updates keep your settings.
 To run it in Docker (for example on Unraid) behind nginx and a Cloudflare Tunnel, see **DEPLOY.md**. There is a
 `Dockerfile` and `docker-compose.yml`; `python serve.py` (Waitress) is what runs inside the container.
 
@@ -98,5 +98,24 @@ template that is committed. To publish a change from the folder that holds `app.
     git commit -m "Describe the change"
     git push
 
-On the Unraid server, `sh deploy/update-unraid.sh` pulls and rebuilds (see DEPLOY.md). Run `python test_calc.py` and
-`python test_app.py` before you push.
+Run `python test_calc.py` and `python test_app.py` before you push.
+
+## Updating on Unraid
+After a change has been pushed to GitHub, open the Unraid terminal and run:
+
+    cd /mnt/user/appdata/workhours-git
+    sh deploy/update-unraid.sh
+
+The script does four things: backs up the database (into the `backups` folder of the data directory), pulls the
+latest code from GitHub, rebuilds and restarts the container (`docker compose up -d --build`), and removes old images.
+Your `.env` and your database are never touched. It needs no git install (git runs from a throwaway container).
+
+First-time setup on a new server:
+
+    cd /mnt/user/appdata
+    docker run --rm -v /mnt/user/appdata:/git alpine/git clone https://github.com/orcsbane1369/Work-Hours.git workhours-git
+    cd workhours-git
+    cp .env.example .env && chmod 600 .env && nano .env      # or copy your existing .env here
+    docker compose up -d --build
+
+See DEPLOY.md for the Cloudflare Tunnel setup.
