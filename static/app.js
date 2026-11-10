@@ -711,6 +711,12 @@
 
   document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
 
+  // The button bar is pinned to the top; tell the CSS how tall it is so the column headings stick right below it.
+  const bar = document.querySelector(".toolbar");
+  const setBar = () => document.documentElement.style.setProperty("--bar-h", Math.round(bar.getBoundingClientRect().height) + "px");
+  setBar(); window.addEventListener("resize", setBar);
+  if (window.ResizeObserver) new ResizeObserver(setBar).observe(bar);
+
   // ---------- init
   $("f_start").value = new Date().getFullYear() + "-01-01";
   $("f_end").value = "";
